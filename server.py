@@ -2,6 +2,7 @@
 
 import time
 import sys
+import os
 import json
 import socket 
 import logging
@@ -61,12 +62,19 @@ def main():
     parser.add_argument('--port', '-p', type=int, help='port(0909)', default=9999)
     args = parser.parse_args()
 
-    logger.debug('server is running....')
 
     host = '0.0.0.0'  
     addr = (host, args.port)  
     server = myThreadingTCPServer(addr, Servers)  
-    server.serve_forever()  
+    try:
+        logger.debug('starting...')
+        server.serve_forever()  
+    except KeyboardInterrupt as e:
+        logger.debug('shutdown...')
+        server.shutdown()
+        server.server_close() 
+        logger.debug('bye')
+        os._exit(0)
 
 if __name__ == '__main__':
     main()
