@@ -4,52 +4,89 @@ import time
 import sys
 import os
 import json
-import socket 
+import socket
 import logging
 import argparse
 import struct
-import SocketServer  
-from SocketServer import StreamRequestHandler as SRH  
-from time import ctime  
-  
+import SocketServer
+from SocketServer import StreamRequestHandler as SRH
+from time import ctime
+
 logger = logging.getLogger('server')
 #logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.DEBUG,
                 format='%(asctime)s [line:%(lineno)d] %(levelname)s %(message)s',
                 )
-  
-class Servers(SRH):  
-    def handle(self):  
+
+class Servers(SRH):
+
+    def handle_upload(self):
+        #data = self.request.recv(2)
+        data = self.rfile.read(2)
+        print len(data)
+        name_len, = struct.unpack('>H', data)
+        logger.debug('name len: %d', name_len)
+
+        #name = self.request.recv(name_len)
+        name = self.rfile.read(name_len)
+        logger.debug('name: %s', name)
+
+        #data = self.request.recv(4)
+        data = self.rfile.read(4)
+        content_len, = struct.unpack('>I', data)
+        logger.debug('content len: %d', content_len)
+
+        #content = self.request.recv(content_len)
+        content = self.rfile.read(content_len)
+        print 'read len: ', len(content)
+
+        path = '/tmp/' + name
+        fo = open(path, 'wb')
+        fo.write(content)
+        fo.close()
+
+        logger.debug("send ack")
+        data = struct.pack('>H', 0x03)
+        #self.request.send(data)
+        self.wfile.write(data)
+
+    def handle_download(self):
+        print len(data)
+        name_len, = struct.unpack('>H', data)
+        logger.debug('name len: %d', name_len)
+
+        #name = self.request.recv(name_len)
+        name = self.rfile.read(name_len)
+        logger.debug('name: %s', name)
+        path = '/tmp/' + name
+        fo = open(path, 'wb')
+        content = fo.read()
+        fo.close()
+
+        content_len = len(content)
+        data = struct.pack('>I', content_len)
+        data += content
+
+        self.wfile.write(data)
+
+    def handle(self):
         logger.debug('got connection from: %s' ,self.client_address)
-        while True:  
+        while True:
             try:
-                #data = self.request.recv(2)  
-                data = self.rfile.read(2)  
+                data = self.rfile.read(2)
                 print len(data)
-                name_len, = struct.unpack('>H', data)
-                logger.debug('name len: %d', name_len)
+                msg_type, = struct.unpack('>H', data)
+                print 'msg type:', msg_type
 
-                name = self.request.recv(name_len)  
-                logger.debug('name: %s', name)
+                if msg_type == 1:
+                    self.handle_upload()
+                elif msg_type == 2:
+                    self.handle_download()
 
-                data = self.request.recv(4)  
-                content_len, = struct.unpack('>I', data)
-                logger.debug('content len: %d', content_len)
-
-                content = self.request.recv(content_len)  
-
-                path = '/tmp/' + name
-                fo = open(path, 'wb')
-                fo.write(content)
-                fo.close()
-
-                logger.debug("send ack")
-                data = struct.pack('>H', 0x03)
-                #self.request.send(data) 
-                self.wfile.write(data) 
             except Exception as e:
                 logger.debug(e)
                 break
+
 class myThreadingTCPServer(SocketServer.ThreadingTCPServer):
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -63,16 +100,16 @@ def main():
     args = parser.parse_args()
 
 
-    host = '0.0.0.0'  
-    addr = (host, args.port)  
-    server = myThreadingTCPServer(addr, Servers)  
+    host = '0.0.0.0'
+    addr = (host, args.port)
+    server = myThreadingTCPServer(addr, Servers)
     try:
         logger.debug('starting...')
-        server.serve_forever()  
+        server.serve_forever()
     except KeyboardInterrupt as e:
         logger.debug('shutdown...')
         server.shutdown()
-        server.server_close() 
+        server.server_close()
         logger.debug('bye')
         os._exit(0)
 
