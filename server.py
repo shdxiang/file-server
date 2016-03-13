@@ -52,6 +52,7 @@ class Servers(SRH):
         self.loop_write(data)
 
     def handle_download(self):
+        data = self.loop_read(2)
         print len(data)
         name_len, = struct.unpack('>H', data)
         logger.debug('name len: %d', name_len)
@@ -60,7 +61,7 @@ class Servers(SRH):
         name = self.loop_read(name_len)
         logger.debug('name: %s', name)
         path = '/tmp/' + name
-        fo = open(path, 'wb')
+        fo = open(path, 'rb')
         content = fo.read()
         fo.close()
 
