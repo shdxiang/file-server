@@ -65,7 +65,12 @@ class Servers(SRH):
         fo.close()
 
         content_len = len(content)
-        data = struct.pack('>I', content_len)
+
+        logger.debug("send data")
+        data = struct.pack('>HH', 0x04, name_len)
+        data += name
+
+        data += struct.pack('>I', content_len)
         data += content
 
         self.loop_write(data)
